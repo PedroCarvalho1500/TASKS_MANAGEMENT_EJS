@@ -1,0 +1,68 @@
+<%- include('partials/header.ejs'); -%>
+
+  <div class="box" id="heading">
+    <h1>
+      <% if (size_items>0){ %>
+        <%= items[0].list_title %>
+      <%}else{%>
+          <%=taskTitle %>
+      <%}%>
+      
+    </h1>
+  </div>
+  <div class="box">
+    <% if (size_items >0){ %>
+        <% for(let item of items){%>
+          <div class="item">
+
+            <p id="title<%=item.item_id%>">
+              <%= item.title %>
+            </p>
+
+            <form class="edit" action="/edit" method="post">
+              <input type="hidden" name="updatedItemId" value="<%= item.item_id %>">
+              <input id="input<%=item.item_id%>" type="text" name="updatedItemTitle" value="<%= items[0].list_title %>" autocomplete="off"
+                autofocus="true" hidden="true" />
+              <button id="done<%=item.item_id%>" class="edit" type="submit" hidden><img class="icon"
+                  src="/assets/icons/check-solid.svg" alt="tick image"></button>
+            </form>
+            <button id="edit<%=item.item_id%>" class="edit" onclick="handler('<%=item.item_id%>')"><img class="icon"
+                src="/assets/icons/pencil-solid.svg" alt="pencil image">
+            </button>
+
+            <button id="delete<%=item.item_id%>" class="delete" onclick=""><img class="icon"
+              src="/assets/icons/icons8-delete.svg" alt="delete image">
+          </button>
+          </div>
+        <% } %>
+    <% } %>
+
+        <form class="item" action="/add" method="post">
+          <input type="text" name="newItem" placeholder="New Item" autocomplete="off" autofocus="true" />
+
+
+          <button class="add" type="submit" name="list" value=<%=taskId %> >+</button>
+ 
+          
+        </form>
+
+
+          <button onclick="homePage()" type="submit" height="30px" width="30px" style="padding: 10px;">Home Page</button>
+        
+          
+  </div>
+
+  <script>
+    function handler(id) {
+      document.getElementById("title" + id).setAttribute("hidden", true)
+      document.getElementById("edit" + id).setAttribute("hidden", true)
+      document.getElementById("done" + id).removeAttribute("hidden")
+      document.getElementById("input" + id).removeAttribute("hidden")
+    }
+
+
+    function homePage(){
+      window.location.href = `/`      
+    }
+  </script>
+  <%- include('partials/footer.ejs'); -%>

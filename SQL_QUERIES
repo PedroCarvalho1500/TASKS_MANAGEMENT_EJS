@@ -1,0 +1,20 @@
+SELECT * FROM public.task_list
+ORDER BY id ASC 
+
+INSERT INTO task_list(list_title,person_id,creation_timestamp) VALUES('02/14/25 TASKS','1','2011-07-01 06:30:30+05')
+
+INSERT INTO task_list(list_title,person_id,creation_timestamp) VALUES('02/14/25 TASKS','2','2014-06-12 11:30:30')
+
+
+UPDATE task_list SET color='LawnGreen' WHERE id=10
+--HoneyDew HotPink IndianRed Indigo
+INSERT INTO task_list(list_title,person_id,creation_timestamp) VALUES('02/14/25 TASKS SECOND PRIORITY','1','2011-07-01 11:30:30+05')
+
+INSERT INTO task_list(list_title,person_id,creation_timestamp) VALUES('02/14/25 TASKS SECOND PRIORITY','1','2011-07-01 14:30:30+05')
+
+INSERT INTO task_list(list_title,person_id,creation_timestamp) VALUES('02/14/25 TASKS SECOND PRIORITY','1','2011-07-01 04:30:30+05')
+
+
+SELECT * FROM task_list WHERE person_id=1 ORDER BY creation_timestamp ASC	
+
+DELETE FROM task_list
