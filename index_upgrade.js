@@ -84,8 +84,20 @@ async function addNewTaskToUser(newTaskTitle,newColor,userId,timestamp){
 }
 
 async function deleteTaskList(taskListId){
-  const result = db.query("DELETE FROM items_task WHERE task_id=$1",[taskListId]);
-  const result2 = db.query("DELETE FROM task_list WHERE id=$1",[taskListId])
+  const result = await db.query("DELETE FROM items_task WHERE task_id=$1",[taskListId]);
+  const result2 = await db.query("DELETE FROM task_list WHERE id=$1",[taskListId])
+}
+
+
+
+async function removeItemById(id){
+  const result = await db.query("DELETE FROM items_task WHERE item_id=$1",[id]);
+  const result2 =await db.query("DELETE FROM items WHERE id=$1",[id]);
+}
+
+
+async function updateItem(id,newItemTitle){
+  const result = await db.query("UPDATE items SET title=$1 WHERE id=$2",[newItemTitle,id]);
 }
 
 app.use(bodyParser.urlencoded({ extended: true }));
@@ -128,9 +140,7 @@ app.get("/view_task/:id", async(req, res) => {
 
 
 app.get("/add_new_task/:id", async(req, res) => {
-  //const personId;
   const userId = parseInt(req.params.id);
-  //console.log(userId);
   res.render(`add_new_task.ejs`,{userId:userId})
 
 });
@@ -140,8 +150,6 @@ app.post("/add", async(req, res) => {
   const item = req.body.newItem;
   let timestamp = new Date();
   timestamp = `${timestamp.getFullYear()}-${timestamp.getMonth()}-${timestamp.getDay()} ${timestamp.getHours()}:${timestamp.getMinutes()}:${timestamp.getSeconds()}`;
-  //console.log(item);
-  //console.log(timestamp);
   const taskListId = parseInt(req.body.list);
   await addNewItemToTaskList(item,timestamp,taskListId);
   const taskItems = await getItemsFromTaskList(taskListId);
@@ -166,6 +174,20 @@ app.post(`/delete_task/:id`, async(req,res)=>{
   res.redirect(`/`);
 })
 
+app.post(`/remove_item`, async(req,res) => {
+  const itemId = parseInt(req.body["deleteItemId"].split(' ')[0]);
+  const taskId = parseInt(req.body["deleteItemId"].split(' ')[1]);
+  await removeItemById(itemId);
+  res.redirect(`/view_task/${taskId}`)
+})
+
+app.post(`/edit`, async(req,res) => {
+  const itemId = parseInt(req.body["updatedItemId"].split(' ')[0]);
+  const taskId = parseInt(req.body["updatedItemId"].split(' ')[1]);
+  const newItemTitle = req.body["updatedItemTitle"];
+  await updateItem(itemId,newItemTitle);
+  res.redirect(`/view_task/${taskId}`)
+})
 
 app.listen(port, () => {
   console.log(`Server running on port ${port}`);

@@ -20,8 +20,8 @@
             </p>
 
             <form class="edit" action="/edit" method="post">
-              <input type="hidden" name="updatedItemId" value="<%= item.item_id %>">
-              <input id="input<%=item.item_id%>" type="text" name="updatedItemTitle" value="<%= items[0].list_title %>" autocomplete="off"
+              <input type="hidden" name="updatedItemId" value="<%= item.item_id %> <%=taskId%>">
+              <input id="input<%=item.item_id%>" type="text" name="updatedItemTitle" value="<%= item.title %>" autocomplete="off"
                 autofocus="true" hidden="true" />
               <button id="done<%=item.item_id%>" class="edit" type="submit" hidden><img class="icon"
                   src="/assets/icons/check-solid.svg" alt="tick image"></button>
@@ -30,9 +30,11 @@
                 src="/assets/icons/pencil-solid.svg" alt="pencil image">
             </button>
 
-            <button id="delete<%=item.item_id%>" class="delete" onclick=""><img class="icon"
-              src="/assets/icons/icons8-delete.svg" alt="delete image">
-          </button>
+            <form class="remove" action="/remove_item" method="post">
+              <button type="submit" name="deleteItemId" value="<%=item.item_id%> <%=taskId%>" id="delete<%=item.item_id%>" class="delete" onclick=""><img class="icon"
+                src="/assets/icons/icons8-delete.svg" alt="delete image">
+              </button>
+            </form>
           </div>
         <% } %>
     <% } %>
