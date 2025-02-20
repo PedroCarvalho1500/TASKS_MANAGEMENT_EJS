@@ -1,9 +1,33 @@
 import express from "express";
 import bodyParser from "body-parser";
 import pg from "pg";
+import bcrypt from "bcrypt";
+import passport from "passport";
+import { Strategy } from "passport-local";
+import GoogleStrategy from 'passport-google-oauth2'
+import session from "express-session";
+import env from "dotenv";
+//const env = require('dotenv').config()
 
 const app = express();
 const port = 3000;
+const saltRounds = 10;
+
+
+
+
+app.use(
+  session({
+    secret: process.env.SESSION_SECRET,
+    resave: false,
+    saveUninitialized: true,
+  })
+);
+
+app.use(bodyParser.urlencoded({ extended: true }));
+app.use(express.static("public"));
+app.use(passport.initialize());
+app.use(passport.session());
 
 const db = new pg.Client({
   user: "postgres",
@@ -37,9 +61,9 @@ async function getAllPeople() {
 async function getCurrentPersonId() {
   const result = await db.query("SELECT * FROM people ORDER BY id ASC");
   //console.log(result.rows)
-  people = []
   
   currentPersonId = result.rows.length === 0 ? 1 : result.rows[0]["id"];
+  //console.log(currentPersonId);
 }
 
 async function getAllTaskListsFromPerson(personId) {
@@ -100,94 +124,249 @@ async function updateItem(id,newItemTitle){
   const result = await db.query("UPDATE items SET title=$1 WHERE id=$2",[newItemTitle,id]);
 }
 
-app.use(bodyParser.urlencoded({ extended: true }));
-app.use(express.static("public"));
 
 
-app.get("/", async(req, res) => {
-  await getAllPeople();
-  if (currentPersonId == undefined || people.length === 0){
-    await getCurrentPersonId();
-  }
-  
-  await getAllTaskListsFromPerson(currentPersonId);
+app.get("/", (req, res) => {
+  res.render("home.ejs");
+});
 
-  res.render("index_upgrade.ejs", {
-    users: people,
-    currentPersonId: currentPersonId,
-    tasks: currentPersonTasks
+app.get("/login", (req, res) => {
+  res.render("login.ejs");
+});
+
+app.get("/register", (req, res) => {
+  res.render("register.ejs");
+});
+
+app.get("/logout", (req, res) => {
+  req.logout(function (err) {
+    if (err) {
+      return next(err);
+    }
+    res.redirect("/");
   });
+});
+
+
+app.get("/main", async(req, res) => {
+  //console.log(req.user["id"]);
+  // console.log(req.user)
+  if(currentPersonId === undefined){
+    currentPersonId = 1;
+  }
+  else{
+    currentPersonId = req.user["id"];
+  }
+  // console.log(currentPersonId);
+  // console.log(req.user["name"]);
+
+  //console.log(req.isAuthenticated())
+
+  if (req.isAuthenticated()) {
+    
+    await getAllTaskListsFromPerson(currentPersonId);
+  
+    res.render("index_upgrade.ejs", {
+      user: req.user,
+      currentPersonId: currentPersonId,
+      tasks: currentPersonTasks
+    });
+  } else {
+    res.redirect("/login");
+  }
+
 });
 
 
 app.post("/change_user", async(req, res) => {
   const idClicked = req.body.userId;
   currentPersonId = idClicked;
-  res.redirect("/");
+  res.redirect("/main");
 });
 
 
 app.get("/view_task/:id", async(req, res) => {
-  const taskId = parseInt(req.params.id);
-  const taskItems = await getItemsFromTaskList(taskId);
-  let taskTitle = await getTaskById(taskId);
-  taskTitle = taskTitle["list_title"];
-  console.log(taskTitle);
-  res.render(`view_task.ejs`,{items:taskItems,taskId: taskId, taskTitle: taskTitle,size_items:taskItems.length})
+  if (req.isAuthenticated()) {
+    const taskId = parseInt(req.params.id);
+    const taskItems = await getItemsFromTaskList(taskId);
+    let taskTitle = await getTaskById(taskId);
+    taskTitle = taskTitle["list_title"];
+    console.log(taskTitle);
+    res.render(`view_task.ejs`,{items:taskItems,taskId: taskId, taskTitle: taskTitle,size_items:taskItems.length})
+  }else{
+    res.redirect("/login");
+  }
+
 
 });
 
 
 
 app.get("/add_new_task/:id", async(req, res) => {
-  const userId = parseInt(req.params.id);
-  res.render(`add_new_task.ejs`,{userId:userId})
+  if (req.isAuthenticated()) {
+    const userId = parseInt(req.params.id);
+    res.render(`add_new_task.ejs`,{userId:userId})
+  }else{
+    res.redirect("/login");
+  }
+
 
 });
 
 
 app.post("/add", async(req, res) => {
-  const item = req.body.newItem;
-  let timestamp = new Date();
-  timestamp = `${timestamp.getFullYear()}-${timestamp.getMonth()}-${timestamp.getDay()} ${timestamp.getHours()}:${timestamp.getMinutes()}:${timestamp.getSeconds()}`;
-  const taskListId = parseInt(req.body.list);
-  await addNewItemToTaskList(item,timestamp,taskListId);
-  const taskItems = await getItemsFromTaskList(taskListId);
-  res.render(`view_task.ejs`,{items:taskItems,taskId: taskListId,size_items:taskItems.length})
+  if (req.isAuthenticated()) {
+    const item = req.body.newItem;
+    let timestamp = new Date();
+    timestamp = `${timestamp.getFullYear()}-${timestamp.getMonth()}-${timestamp.getDay()} ${timestamp.getHours()}:${timestamp.getMinutes()}:${timestamp.getSeconds()}`;
+    const taskListId = parseInt(req.body.list);
+    await addNewItemToTaskList(item,timestamp,taskListId);
+    const taskItems = await getItemsFromTaskList(taskListId);
+    res.render(`view_task.ejs`,{items:taskItems,taskId: taskListId,size_items:taskItems.length})
+  }else{
+    res.redirect("/login");
+  }
+
 });
 
 app.post(`/add_new_task_form`, async(req,res)=>{
-  const newTaskTitle = req.body.taskTitle;
-  const newColor = req.body.colors;
-  const userId = req.body.user_id;
-  let timestamp = new Date();
-  timestamp = `${timestamp.getFullYear()}-${timestamp.getMonth()}-${timestamp.getDay()} ${timestamp.getHours()}:${timestamp.getMinutes()}:${timestamp.getSeconds()}`;
-  await addNewTaskToUser(newTaskTitle,newColor,userId,timestamp)
-  res.redirect(`/`);
+  if (req.isAuthenticated()) {
+    const newTaskTitle = req.body.taskTitle;
+    const newColor = req.body.colors;
+    const userId = req.body.user_id;
+    let timestamp = new Date();
+    timestamp = `${timestamp.getFullYear()}-${timestamp.getMonth()}-${timestamp.getDay()} ${timestamp.getHours()}:${timestamp.getMinutes()}:${timestamp.getSeconds()}`;
+    await addNewTaskToUser(newTaskTitle,newColor,userId,timestamp)
+    res.redirect(`/main`);
+  }else{
+    res.redirect("/login");
+  }
+
 })
 
 
 app.post(`/delete_task/:id`, async(req,res)=>{
-  const taskId = parseInt(req.params.id);
-  console.log(taskId);
-  await deleteTaskList(taskId);
-  res.redirect(`/`);
+  if (req.isAuthenticated()) {
+    const taskId = parseInt(req.params.id);
+    console.log(taskId);
+    await deleteTaskList(taskId);
+    res.redirect(`/main`);
+  }else{
+    res.redirect("/login");
+  }
+
 })
 
 app.post(`/remove_item`, async(req,res) => {
-  const itemId = parseInt(req.body["deleteItemId"].split(' ')[0]);
-  const taskId = parseInt(req.body["deleteItemId"].split(' ')[1]);
-  await removeItemById(itemId);
-  res.redirect(`/view_task/${taskId}`)
+  if (req.isAuthenticated()) {
+    const itemId = parseInt(req.body["deleteItemId"].split(' ')[0]);
+    const taskId = parseInt(req.body["deleteItemId"].split(' ')[1]);
+    await removeItemById(itemId);
+    res.redirect(`/view_task/${taskId}`)
+  }else{
+    res.redirect("/login");
+  }
+
 })
 
 app.post(`/edit`, async(req,res) => {
-  const itemId = parseInt(req.body["updatedItemId"].split(' ')[0]);
-  const taskId = parseInt(req.body["updatedItemId"].split(' ')[1]);
-  const newItemTitle = req.body["updatedItemTitle"];
-  await updateItem(itemId,newItemTitle);
-  res.redirect(`/view_task/${taskId}`)
-})
+  if (req.isAuthenticated()) {
+    const itemId = parseInt(req.body["updatedItemId"].split(' ')[0]);
+    const taskId = parseInt(req.body["updatedItemId"].split(' ')[1]);
+    const newItemTitle = req.body["updatedItemTitle"];
+    await updateItem(itemId,newItemTitle);
+    res.redirect(`/view_task/${taskId}`)
+  }else{
+    res.redirect("/login");
+  }
+
+});
+
+app.post(
+  "/login",
+  passport.authenticate("local", {
+    successRedirect: "/main",
+    failureRedirect: "/login",
+  })
+);
+
+
+app.post("/register", async (req, res) => {
+  const email = req.body.username;
+  const password = req.body.password;
+  const newColor = req.body.colors;
+
+  try {
+    const checkResult = await db.query("SELECT * FROM people WHERE name = $1", [
+      email,
+    ]);
+
+    if (checkResult.rows.length > 0) {
+      res.redirect("/login");
+    } else {
+      bcrypt.hash(password, saltRounds, async (err, hash) => {
+        if (err) {
+          console.error("Error hashing password:", err);
+        } else {
+          const result = await db.query(
+            "INSERT INTO people (name,color, password) VALUES ($1, $2, $3) RETURNING *",
+            [email,newColor, hash]
+          );
+          const user = result.rows[0];
+          req.login(user, (err) => {
+            console.log("success");
+            res.redirect("/main");
+          });
+        }
+      });
+    }
+  } catch (err) {
+    console.log(err);
+  }
+});
+
+
+
+passport.use("local",
+  new Strategy(async function verify(username, password, cb) {
+    try {
+      const result = await db.query("SELECT * FROM people WHERE name = $1 ", [
+        username,
+      ]);
+      if (result.rows.length > 0) {
+        const user = result.rows[0];
+        const storedHashedPassword = user.password;
+        bcrypt.compare(password, storedHashedPassword, (err, valid) => {
+          if (err) {
+            //Error with password check
+            console.error("Error comparing passwords:", err);
+            return cb(err);
+          } else {
+            if (valid) {
+              //Passed password check
+              return cb(null, user);
+            } else {
+              //Did not pass password check
+              return cb(null, false);
+            }
+          }
+        });
+      } else {
+        return cb("User not found");
+      }
+    } catch (err) {
+      console.log(err);
+    }
+  })
+);
+
+
+passport.serializeUser((user, cb) => {
+  cb(null, user);
+});
+passport.deserializeUser((user, cb) => {
+  cb(null, user);
+});
 
 app.listen(port, () => {
   console.log(`Server running on port ${port}`);

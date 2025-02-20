@@ -1,6 +1,10 @@
 <!DOCTYPE html>
 <html lang="en">
-
+    <header class="p-3 text-bg-dark">
+      <form action="/logout">
+        <button type="submit" class="btn btn-warning">Logout</button>
+      </form>
+  </header>
   <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -15,16 +19,16 @@
         display: inline-flex;
       }
     </style>
+
+
   </head>
   <body>
 
 
     <form class="tab-view tab-view-height-auto" action="/change_user" method="post">
-      <% users.forEach(function(user) { %>
-        <button name="userId" value="<%= user.id%>" style="background-color: <%= user.color %>;margin-left:15px; border:0; border-radius: 0%; width: 150px; margin-right: 40px">
-          <%= user.name %>
+        <button name="userId" value="<%= user.id%>" style="background-color: <%= user.color %>;margin-left:15px; border:0; border-radius: 0%; width: 350px; margin-right: 40px">
+          <%= user["name"] %>
         </button>
-      <% }); %>
 
       <!-- <h1>CURRENT ID IS: <%= currentPersonId %></h1> -->
     </form>
